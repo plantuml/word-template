@@ -1,0 +1,1056 @@
+'  ========================================================================
+'  Plantuml : a free UML diagram generator
+'  ========================================================================
+'
+'  (C) Copyright 2009-2017, Arnaud Roques
+'
+'  Project Info:  http://plantuml.com
+' 
+'  If you like this project or if you find it useful, you can support us at:
+' 
+'  http://plantuml.com/patreon (only 1$ per month!)
+'  http://plantuml.com/paypal
+' 
+'  This file is part of PlantUML.
+'
+'  Plantuml is free software; you can redistribute it and/or modify it
+'  under the terms of the GNU General Public License as published by
+'  the Free Software Foundation, either version 3 of the License, or
+'  (at your option) any later version.
+'
+'  Plantuml distributed in the hope that it will be useful, but
+'  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+'  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public
+'  License for more details.
+'
+'  You should have received a copy of the GNU General Public
+'  License along with this library; if not, write to the Free Software
+'  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+'  USA.
+'
+'  [Java is a trademark or registered trademark of Sun Microsystems, Inc.
+'  in the United States and other countries.]
+'
+'  Original Author:  Arnaud Roques
+'  Word Macro: Alain Bertucat / Matthieu Sabatier
+'  Improved error management : Christopher Fuhrman
+'  http://vbadud.blogspot.fr/2008/12/how-to-set-and-reset-track-changes.html
+'  Version 008
+'    changes by Adriaan van den Brand & Pieter Smith
+'    - direct writing of files (instead of creating documents and using paste & save)
+'    - fixed bug in 006/007 version which inserted wrong images (because the javalock didn't work
+'           use ShellUtil which waits until completion of java
+'     - integrated in word template for easy integration in word environment
+' version 010 (template 2.6)
+'  changes by Adriaan van den Brand
+'    - use of utf-8 for plantuml files
+'    - add @rescale for post processing scale
+'    - fix language dependency in styles
+'    - add autoformat on/off functions'
+'    - remove add-in toolbar (obsolete by plantuml toolbar) (toolbar and statusbutton code commented out)
+'  Open issue: onload doesn't work yet (intended for feedback via ribbon)
+'  Version 011
+'   changes by Adriaan van den Brand
+'      add preferences
+'      add png/eps selector (default remains eps)
+' Version 012
+'    Add include path: document path (thanks Matt)
+' Version 013
+'    copy/paste compatibility (now style is toggled from hidden/visible instead of display hidden text
+'    auto scale (reduce) to fit page
+'
+' version 014
+'   64 bit compatibility added (provided by Andreas Brusinsky,  Gil Fuchs, Ren Vleer)
+' version 015
+'   added ftp
+' version 032
+'   see http://plantuml.sourceforge.net/qa/?qa=4083/plantuml_template_v30-does-not-work
+'   see http://plantuml.sourceforge.net/qa/?qa=3329/word-2010-runtime-error-when-generating-new-plantuml-image
+'   replace ActiveDocument.PageSetup with currentparagraph.PageSetup to solve sections issues
+
+
+#If Win64 Or VBA7 Then
+  Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+#Else
+  Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+#End If
+
+
+Const startuml = "@start"
+Const enduml = "@end"
+
+Dim vectorgraphics As Boolean
+Dim useFTP As Boolean
+Dim FTPURL As String
+
+
+
+
+Function get_gfx_extension() As String
+    If vectorgraphics Then
+        get_gfx_extension = "*.eps"
+    Else
+        get_gfx_extension = "*.png"
+    End If
+End Function
+
+
+Function get_plantuml_options() As String
+    Dim options As String
+    options = ""
+    If vectorgraphics Then
+       options = options + " -teps"
+    End If
+
+    get_plantuml_options = options
+End Function
+
+Function getExePath(searchfor As String, ByRef try As String) As String
+    Set fs = CreateObject("Scripting.FileSystemObject")
+     
+    nbTemplates = ActiveDocument.Parent.Templates.Count
+    mainPath = ActiveDocument.Path
+    try = ActiveDocument.Path & "\"
+    
+    nb = InStrRev(mainPath, "\")
+    Do While nb > 1 And fs.FileExists(mainPath + searchfor) = False
+        mainPath = Left(mainPath, nb - 1)
+        try = try & vbCrLf & mainPath & "\"
+        nb = InStrRev(mainPath, "\")
+    Loop
+    
+    ' see http://plantuml.sourceforge.net/qa/?qa=4083/plantuml_template_v30-does-not-work
+    ' In case mainPath is the empty string as the active document is the empty string,
+    ' and in case the plantuml.jar can be found in the current directory, the below
+    ' code results in mainPath being the empty string which would work properly if
+    ' the calling method would not check for an empty string as execution path
+    ' and state this is wrong and has to fail. Therefore, change main path in case
+    ' it is an empty string at this point with an explicit, not empty string stating to
+    ' use the current folder as relative path.
+    If mainPath = "" Then
+        mainPath = ".\"
+    End If
+    
+    For I = 1 To nbTemplates
+        If fs.FileExists(mainPath + searchfor) = False Then
+            mainPath = ActiveDocument.Parent.Templates.Item(I).Path
+            try = try & vbCrLf & ActiveDocument.Parent.Templates.Item(I).Path & "\"
+            nb = InStrRev(mainPath, "\")
+            Do While nb > 1 And fs.FileExists(mainPath + searchfor) = False
+                mainPath = Left(mainPath, nb - 1)
+                try = try & vbCrLf & mainPath & "\"
+                nb = InStrRev(mainPath, "\")
+            Loop
+        End If
+    Next I
+    
+    If fs.FileExists(mainPath + searchfor) Then
+        getExePath = mainPath
+    Else
+        getExePath = "Error : Cannot find plantuml.jar in :" & vbCrLf & try
+    End If
+    
+    
+End Function
+
+' =========================================================
+' This function returns the path for plantuml.jar
+Function getJarPath() As String
+     Set fs = CreateObject("Scripting.FileSystemObject")
+    Dim trypath As String
+    trypath = ""
+    jarPath = getExePath("\plantuml.jar", trypath)
+    If (jarPath <> "") And fs.FileExists(jarPath + "\plantuml.jar") Then
+        getJarPath = jarPath
+    Else
+        getJarPath = "Error : Cannot find plantuml.jar in :" & vbCrLf & trypath
+    End If
+    
+End Function
+
+
+
+' =========================================================
+' This function returns the path for plantuml.jar
+Function getDotPath() As String
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    Dim trypath As String
+    Dim searchfor As String
+    trypath = Environ("%APPDATA%")
+    If Environ("GRAPHVIZ_DOT") <> "" Then Exit Function
+    searchfor = "\release\bin\dot.exe"
+    dotPath = getExePath(searchfor, trypath)
+    If (dotPath <> "") And fs.FileExists(dotPath + searchfor) Then
+        getDotPath = dotPath + searchfor
+    Else
+        getDotPath = "" '"Error : Cannot find graphviz in :" & vbCrLf & trypath
+    End If
+End Function
+
+
+' =========================================================
+' Print out the used plantuml.jar
+Sub ShowPlantumlJarPath()
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    jarPath = getJarPath()
+    If jarPath <> "" And fs.FileExists(jarPath) Then
+        MsgBox "OK : " & jarPath
+    Else
+        MsgBox jarPath
+    End If
+End Sub
+' =========================================================
+' Used to migrate from previous PlantUML macro version
+Sub RemoveOldVersionPlantUMLSyles()
+   On Error GoTo DeleteEnd
+   ActiveDocument.Styles("PlantUML").Delete
+   On Error GoTo 0
+DeleteEnd:
+   On Error GoTo 0
+   Call Macro_UML_all
+
+End Sub
+' =========================================================
+' Called when the user click on "UML.*"
+Sub Macro_UML_all()
+    Macro_UML ("all")
+End Sub
+
+' =========================================================
+Sub Macro_UML_styles()
+    CreateStyle (True)
+End Sub
+
+' =========================================================
+' Called when the user click on "UML.1"
+Function Macro_UML_parg()
+    Macro_UML ("parg")
+End Function
+
+' =========================================================
+Function WriteToFile(sFile, sText As String)
+    Dim objStream As Object
+    Set objStream = CreateObject("ADODB.Stream")
+    With objStream
+        .Type = 2              ' Stream type = text / string data
+        .Mode = 3
+        '.Charset = "ascii"     ' plantUML can only deal with ASCII: Setting to ASCII kills Word's autoformatting
+        .Charset = "utf-8"     ' plantUML can only deal with ASCII: Setting to ASCII kills Word's autoformatting
+        .Open
+        .WriteText sText
+        .SaveToFile sFile, 2
+    End With
+End Function
+
+Function Macro_UML(scope) As String
+' Generate diagrams image from a PlantUML source textual description in the Word Document
+' Scope can be "parg" or "all"
+'
+' - Initialisations
+    Dim currentIndex As Long
+    Dim ftphandle As Long
+    Dim JavaCommand As String
+    Dim GraphVizOption As String
+    GraphVizOption = ""
+    Dim scalefiles As Scripting.Dictionary
+    Set scalefiles = New Scripting.Dictionary
+    ToolbarInit
+'    Set statusButton = CommandBars("UML").Controls(6)
+    If RegKeyRead("VectorGraphics") = "ON" Then
+        vectorgraphics = True
+    End If
+    If RegKeyRead("FTPMode") = "ON" Then
+        useFTP = True
+    End If
+    
+    FTPURL = RegKeyRead("FTPURL", "127.0.0.1:4242")
+    
+    
+    Call CreateStyle(True)
+    Call CreateStyleImg
+    Call ShowPlantuml
+
+    Call ShowHiddenText
+    Selection.Range.Select
+'
+' documentId is the filename with its path, without extension
+'
+    documentId = ActiveDocument.Name
+    documentId = Left(documentId, Len(documentId) - 4)
+    
+    ' Check for the presente of plantuml.jar
+    
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    jarPath = getJarPath()
+    If (jarPath = "") Or fs.FileExists(jarPath + "\plantuml.jar") = False Then
+        MsgBox jarPath
+        GoTo Macro_UML_exit
+    End If
+    dotPath = getDotPath()
+    If dotPath <> "" Then
+        GraphVizOption = " -graphvizdot """ & dotPath & """"
+    End If
+    
+' - Phase 1
+' We create a file text per bloc of diagrams
+' We look for @startuml
+' We open the textfile in background (visible:=false)
+' We add to the name a number on 4 digit
+' The text bloc is put on "PlantUML" style
+' Then the bloc is copied into the text file
+
+'    statusButton.Caption = "Extract"
+'    statusButton.Visible = False
+'    statusButton.Visible = True
+    If scope = "all" Then
+        Set parsedtext = ActiveDocument.Content
+        isForward = True
+    Else
+        Set parsedtext = Selection.Range
+        ' parsedtext.Collapse
+        isForward = False
+    End If
+
+    parsedtext.Find.Execute FindText:=startuml, Forward:=isForward
+    If parsedtext.Find.Found = True Then
+        'We keep the the first line only "@startuml" with the carriage return
+        Set singleparagraph = parsedtext.Paragraphs(1).Range
+        singleparagraph.Collapse
+    Else
+        GoTo Macro_UML_exit
+    End If
+    Application.ScreenUpdating = False
+    jobDone = False
+    If useFTP Then
+        ftphandle = ftpOpen(FTPURL)
+        If ftphandle <= 0 Then
+           MsgBox "Cannot create ftp connection, aborting"
+           Exit Function
+        End If
+    End If
+    
+    Do While parsedtext.Find.Found = True And _
+             (scope = "all" Or currentIndex < 1) And Not jobDone
+'        statusButton.Caption = "Extract." & currentIndex + 1
+'        statusButton.Visible = False
+'        statusButton.Visible = True
+        Set currentparagraph = parsedtext.Paragraphs(1)
+        Set paragraphRange = currentparagraph.Range
+        paragraphRange.Collapse
+        jobDone = False
+        Do Until jobDone
+            If Left(currentparagraph.Range.Text, Len(startuml)) = startuml Then
+                Set paragraphRange = currentparagraph.Range
+                paragraphRange.Collapse
+               
+            End If
+            paragraphRange.MoveEnd Unit:=wdParagraph
+            If Left(currentparagraph.Range.Text, Len(enduml)) = enduml Then
+                Dim s As String
+                paragraphRange.Style = "PlantUML"
+                s = paragraphRange.Text
+                currentIndex = currentIndex + 1
+                
+                factor = 0#
+                On Error Resume Next
+                p = InStr(LCase(s), "@rescale ")
+                If p > 0 Then
+
+                    endscale = InStr(p + 9, s, Chr(13)) - p - 9
+                    factorstr = Mid(s, p + 9, endscale)
+                    factor = Val(factorstr)
+                End If
+                On Error GoTo 0
+                
+                textFileId = documentId & "_extr" & Right("000" & currentIndex, 4) & ".txt"
+                If factor > 0 Then
+                    scalefiles(Replace(textFileId, ".txt", "")) = factor
+                End If
+                If scope = "fetch" Then
+                    Macro_UML = Mid(s, 1, Len(s) - 1)
+                     Application.ScreenUpdating = True
+                    Exit Function
+                End If
+                filename = jarPath & "\" & textFileId
+                
+                WriteToFile filename, Mid(s, 1, Len(s) - 1)
+                If useFTP Then
+                   retValue = FtpStor(ftphandle, jarPath & "\" & textFileId, textFileId)
+                End If
+
+                If scope <> "all" Then
+                    jobDone = True
+                End If
+
+            End If
+            Set currentparagraph = currentparagraph.Next
+            If currentparagraph Is Nothing Then
+                jobDone = True
+            End If
+        Loop
+        parsedtext.Collapse Direction:=wdCollapseEnd
+        If scope = "all" Then
+            parsedtext.Find.Execute FindText:=startuml, Forward:=True
+        End If
+   Loop
+   Application.ScreenUpdating = True
+'
+' We create a lock file that will be deleted by the Java program to indicate the end of Java process
+'
+'    statusButton.Caption = "Gener"
+'    statusButton.Visible = False
+'    statusButton.Visible = True
+
+'
+' Call to PlantUML to generate images from text descriptions
+'
+    ' version 012 : add include path to document path
+    ' if document is loaded from disk (by drive letter)
+    If useFTP Then
+        For I = 1 To currentIndex
+               imageId = documentId & "_extr" & Right("000" & I, 4) & ".png"
+               imageName = jarPath & "\" & imageId
+               retValue = FtpRetr(ftphandle, imageName, imageId)
+        Next I
+  'Sleep 200
+    Else
+        Set lockFile = Documents.Add(Visible:=False)
+        lockFile.SaveAs filename:=jarPath & "\javaumllock.tmp", FileFormat:=wdFormatText
+        lockFile.Close
+    
+        Dim javaoptions
+            javaoptions = " -Dplantuml.include.path=" & Chr(34) & ActiveDocument.Path & Chr(34) & " "
+    
+            JavaCommand = "java " & javaoptions _
+               & "-classpath """ & jarPath & "\plantuml.jar;" & _
+                jarPath & "\plantumlskins.jar"" net.sourceforge.plantuml.Run -word """ & jarPath & "/""" & GraphVizOption & get_plantuml_options()
+        
+        
+        
+                
+        Result = ShellAndWait(JavaCommand, 0, vbMinimizedFocus, AbandonWait)
+        If Result <> Success Then
+            MsgBox "Java command execution failed (break key?)"
+            Return
+        End If
+    
+
+' This sleep is needed, but we don't know why...
+        Sleep 1000
+    End If
+'
+' Phase 2 :
+' Insertion of images into the word document
+' We insert the image after the textual block that describe the diagram
+'
+    jobDone = False
+    nrOfImages = currentIndex
+    currentIndex = 0
+    'Sleep 50 * nrOfImages
+    
+' We wait for the file javaumllock.tmp to be deleted by Java
+' which means that the process is ended
+'
+    ' get images via ftp or wait for java to end
+    If useFTP Then
+
+    Else
+        Do
+            currentIndex = currentIndex + 1
+    '        statusButton.Caption = "Gener." & currentIndex
+    '        statusButton.Visible = False
+    '        statusButton.Visible = True
+    
+            DoEvents
+            
+            Sleep 100 ' Sleep 500
+            If fs.FileExists(jarPath & "\javaumllock.tmp") = False Then
+                jobDone = True
+                Exit Do
+            End If
+            If currentIndex > 30 Then
+    '            statusButton.Visible = False
+                MsgBox ("Java Timeout. Aborted.")
+                Exit Do
+            End If
+        Loop
+    
+        If jobDone = False Then
+            End
+        End If
+    End If
+        
+'    statusButton.Caption = "Inser."
+'    statusButton.Visible = False
+'    statusButton.Visible = True
+    
+    If scope = "all" Then
+        Set parsedtext = ActiveDocument.Content
+        isForward = True
+    Else
+        Set parsedtext = singleparagraph
+        isForward = True
+    End If
+    parsedtext.Find.Execute FindText:=enduml, Forward:=isForward
+    currentIndex = 0
+        bTrackRevFlag = ActiveDocument.TrackRevisions
+        ActiveDocument.TrackRevisions = False
+    Do While parsedtext.Find.Found = True And (scope = "all" Or currentIndex < 1)
+        currentIndex = currentIndex + 1
+'        statusButton.Caption = "Inser." & currentIndex
+'        statusButton.Visible = False
+'        statusButton.Visible = True
+        On Error GoTo LastParagraph
+        
+        'error handler will assume that the @enduml is at the last paragraph of the document. Not always true
+       
+        Set currentparagraph = parsedtext.Paragraphs(1).Next.Range
+        Do While currentparagraph.InlineShapes.Count > 0 And currentparagraph.Style = "PlantUMLImg"
+            currentparagraph.Delete
+            Set currentparagraph = parsedtext.Paragraphs(1).Next.Range
+        Loop
+        On Error GoTo 0
+        Set currentRange = currentparagraph
+        imagesDirectory = jarPath & "\" & documentId & "_extr" & Right("000" & currentIndex, 4) & get_gfx_extension()
+        image = Dir(imagesDirectory)
+        While image <> ""
+            ' Contain the text of the error
+            errorTextFile = jarPath & "\" & Left(image, Len(image) - 4) & ".err"
+            BaseName = Left(image, Len(image) - 4)
+            Set currentparagraph = ActiveDocument.Paragraphs.Add(Range:=currentRange).Range
+            Set currentRange = currentparagraph.Paragraphs(1).Next.Range
+            currentparagraph.Style = "PlantUMLImg"
+            currentparagraph.Collapse
+            
+            Set image = currentparagraph.InlineShapes.AddPicture _
+                (filename:=jarPath & "\" & image _
+                , LinkToFile:=False, SaveWithDocument:=True)
+        
+            ' check if scale was forced in plantuml code
+            If scalefiles(CStr(BaseName)) > 0.1 And scalefiles(CStr(BaseName)) < 5 Then
+                image.ScaleWidth = scalefiles(CStr(BaseName)) * 100
+                image.ScaleHeight = scalefiles(CStr(BaseName)) * 100
+            Else
+                ' new 2.9
+                ' default: autoscale; reduce to fit if > margin. 100% if picture fits
+                With image
+                    .LockAspectRatio = msoFalse
+                    .ScaleWidth = 100
+                    .ScaleHeight = 100
+                     percentW = currentparagraph.PageSetup.TextColumns.Width / image.Width
+                     percentH = (currentparagraph.PageSetup.PageHeight - currentparagraph.PageSetup.TopMargin - currentparagraph.PageSetup.BottomMargin) / image.Height
+                     If percentH < percentW Then percentW = percentH
+                     If percentW < 1 Then
+                        .ScaleWidth = percentW * 100
+                        .ScaleHeight = percentW * 100
+                    End If
+                End With
+            End If
+            
+            If fs.FileExists(errorTextFile) Then
+                image.AlternativeText = LoadTextFile(errorTextFile)
+                Beep
+            Else
+                image.AlternativeText = "Generated by PlantUML"
+            End If
+
+            If image.ScaleHeight > 100 Or image.ScaleWidth > 100 Then
+                image.Reset
+            End If
+            image = Dir()
+        Wend
+        parsedtext.Collapse Direction:=wdCollapseEnd
+        parsedtext.Find.Execute FindText:=enduml, Forward:=True
+   Loop
+   ActiveDocument.TrackRevisions = bTrackRevFlag
+    
+'
+' Phase 3 : suppression of temporary files (text and PNG)
+'
+Phase3:
+'    statusButton.Caption = "Delete"
+'    statusButton.Visible = False
+'    statusButton.Visible = True
+    If Not useFTP Then
+        On Error Resume Next
+        
+        Kill (jarPath & "\" & documentId & "_extr*.*")
+        On Error GoTo 0
+    Else
+       ftpClose ftphandle
+    End If
+Macro_UML_exit:
+
+'    statusButton.Visible = False
+    
+    'We show the hidden description text
+    Call ShowHiddenText
+    DoubleCheckStyle
+Exit Function
+
+
+' This is need when the very last line of the Word document (or table cell) is @enduml
+LastParagraph:
+    Selection.EndKey Unit:=wdStory
+    Selection.TypeParagraph
+    Selection.ClearFormatting
+    
+        imagesDirectory = jarPath & "\" & documentId & "_extr" & Right("000" & currentIndex, 4) & get_gfx_extension
+        image = Dir(imagesDirectory)
+        While image <> ""
+            ' Contain the text of the error
+            errorTextFile = jarPath & "\" & Left(image, Len(image) - 4) & ".err"
+            
+            Set currentparagraph = ActiveDocument.Paragraphs.Add.Range
+            Set currentRange = currentparagraph.Paragraphs(1).Next.Range
+            currentparagraph.Style = "PlantUMLImg"
+            currentparagraph.Collapse
+            
+            Set image = currentparagraph.InlineShapes.AddPicture _
+                (filename:=jarPath & "\" & image _
+                , LinkToFile:=False, SaveWithDocument:=True)
+                
+            If fs.FileExists(errorTextFile) Then
+                image.AlternativeText = LoadTextFile(errorTextFile)
+                Beep
+            Else
+                image.AlternativeText = "Generated by PlantUML"
+            End If
+            
+            If image.ScaleHeight > 100 Or image.ScaleWidth > 100 Then
+                image.Reset
+            End If
+            image = Dir()
+        Wend
+    
+    'Resume Next
+    GoTo Phase3
+
+End Function
+
+' =========================================================
+' Initialize the plantuml ToolBar
+Sub ToolbarInit()
+    On Error Resume Next
+    ActiveDocument.CommandBars("UML").Delete
+    On Error GoTo 0
+End Sub
+    
+'doesn't work yet?
+'Callback for customUI.onLoad
+Sub RibbonOnLoad(ribbon As IRibbonUI)
+End Sub
+
+    
+'original toolbar of plantuml, now obsolete
+Function OldToolbarInit()
+    On Error GoTo ToolbarCreation
+    Set toolBar = ActiveDocument.CommandBars("UML")
+    On Error GoTo 0
+    
+    toolBar.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(1)
+    On Error GoTo 0
+    currentButton.OnAction = "PlantUML.SwitchP"
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = Chr(182)
+    currentButton.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(2)
+    On Error GoTo 0
+    currentButton.OnAction = "PlantUML.ShowPlantuml"
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = "Show PlantUML"
+    currentButton.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(3)
+    On Error GoTo 0
+    currentButton.OnAction = "PlantUML.HidePlantuml"
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = "Hide PlantUML"
+    currentButton.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(4)
+    On Error GoTo 0
+    currentButton.OnAction = "PlantUML.Macro_UML_all"
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = "UML.*"
+    currentButton.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(5)
+    On Error GoTo 0
+    currentButton.OnAction = "PlantUML.Macro_UML_parg"
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = "UML.1"
+    currentButton.Visible = True
+    
+    On Error GoTo ButtonAdd
+    Set currentButton = toolBar.Controls(6)
+    On Error GoTo 0
+    currentButton.OnAction = ""
+    currentButton.Style = msoButtonCaption
+    currentButton.Caption = "Trace"
+    currentButton.Visible = True
+    Exit Function
+
+ToolbarCreation:
+    Set toolBar = ActiveDocument.CommandBars.Add(Name:="UML")
+    Resume Next
+
+ButtonAdd:
+    Set currentButton = toolBar.Controls.Add(Type:=msoControlButton, Before:=toolBar.Controls.Count + 1)
+    Resume Next
+
+End Function
+
+' =========================================================
+' We need to double check that the style is present in the document
+Function DoubleCheckStyle()
+    CreateStyle
+    CreateStyleImg
+    Set mystyle = ActiveDocument.Styles("PlantUML")
+    'myStyle.BaseStyle = ActiveDocument.Styles("Normal")
+    'above line fixed to work on international versions of Word
+    mystyle.BaseStyle = ActiveDocument.Styles(WdBuiltinStyle.wdStyleNormal)
+    
+    mystyle.AutomaticallyUpdate = True
+    With mystyle.Font
+        .Name = "Courier New"
+        .Size = 9
+        .Hidden = False
+        '.Hidden = True ' change in plantuml template 2.9 to allow copy/paste
+        .Color = wdColorGreen
+    End With
+End Function
+
+
+' =========================================================
+Function CreateStyle(Optional overwriteIfStyleExists As Boolean = False)
+    On Error GoTo CreateStyleAdding
+    Set mystyle = ActiveDocument.Styles("PlantUML")
+    If overwriteIfStyleExists = True Then
+        GoTo CreateStyleOverwrite
+    End If
+    Exit Function
+CreateStyleAdding:
+    Set mystyle = ActiveDocument.Styles.Add(Name:="PlantUML", Type:=wdStyleTypeParagraph)
+CreateStyleOverwrite:
+    'myStyle.BaseStyle = ActiveDocument.Styles("Normal")
+    ' fix for international versions of Word
+    mystyle.BaseStyle = ActiveDocument.Styles(WdBuiltinStyle.wdStyleNormal)
+    mystyle.AutomaticallyUpdate = True
+    With mystyle.Font
+        .Name = "Courier New"
+        .Size = 9
+        .Hidden = False
+        .Hidden = True
+        .Color = wdColorGreen
+    End With
+    
+    mystyle.NoProofing = True
+    With mystyle.ParagraphFormat
+        With .Shading
+            .Texture = wdTextureNone
+            .ForegroundPatternColor = wdColorAutomatic
+            .BackgroundPatternColor = wdColorLightGreen
+        End With
+        .LineSpacingRule = wdLineSpaceSingle
+        'new style: single line, left aligned
+        .SpaceBefore = 0
+        .SpaceBeforeAuto = False
+        .SpaceAfter = 0
+        .SpaceAfterAuto = False
+        .LineSpacingRule = wdLineSpaceSingle
+        .Alignment = wdAlignParagraphLeft
+        .LineUnitBefore = 0
+        .LineUnitAfter = 0
+        .LeftIndent = CentimetersToPoints(0)
+
+        With .Shading
+            .Texture = wdTextureNone
+            .ForegroundPatternColor = wdColorAutomatic
+            .BackgroundPatternColor = 12254650
+            
+        End With
+        With .Borders(wdBorderLeft)
+            .LineStyle = wdLineStyleDashLargeGap
+            .LineWidth = wdLineWidth050pt
+            .Color = 3910491
+        End With
+        With .Borders(wdBorderRight)
+            .LineStyle = wdLineStyleDashLargeGap
+            .LineWidth = wdLineWidth050pt
+            .Color = 3910491
+        End With
+        With .Borders(wdBorderTop)
+            .LineStyle = wdLineStyleDashLargeGap
+            .LineWidth = wdLineWidth050pt
+            .Color = 3910491
+        End With
+        With .Borders(wdBorderBottom)
+            .LineStyle = wdLineStyleDashLargeGap
+            .LineWidth = wdLineWidth050pt
+            .Color = 3910491
+        End With
+        With .Borders
+            .DistanceFromTop = 1
+            .DistanceFromLeft = 4
+            .DistanceFromBottom = 1
+            .DistanceFromRight = 4
+            .Shadow = False
+        End With
+    End With  'paragraphformat
+    
+    ' ajout des tabulations
+    mystyle.NoSpaceBetweenParagraphsOfSameStyle = False
+    mystyle.ParagraphFormat.TabStops.ClearAll
+    mystyle.ParagraphFormat.TabStops.Add Position:= _
+        CentimetersToPoints(1), Alignment:=wdAlignTabLeft, Leader:=wdTabLeaderSpaces
+    mystyle.ParagraphFormat.TabStops.Add Position:= _
+        CentimetersToPoints(2), Alignment:=wdAlignTabLeft, Leader:=wdTabLeaderSpaces
+    mystyle.ParagraphFormat.TabStops.Add Position:= _
+        CentimetersToPoints(3), Alignment:=wdAlignTabLeft, Leader:=wdTabLeaderSpaces
+    mystyle.ParagraphFormat.TabStops.Add Position:= _
+        CentimetersToPoints(4), Alignment:=wdAlignTabLeft, Leader:=wdTabLeaderSpaces
+
+
+End Function
+
+' =========================================================
+Function CreateStyleImg()
+
+    On Error GoTo CreateStyleImgAdding
+    Set mystyle = ActiveDocument.Styles("PlantUMLImg")
+    mystyle.Font.Hidden = False
+    On Error GoTo CreateStyleSkip
+    mystyle.BaseStyle = ActiveDocument.Styles("Normal")
+CreateStyleSkip:
+    On Error GoTo 0
+    Exit Function
+CreateStyleImgAdding:
+    Set mystyle = ActiveDocument.Styles.Add(Name:="PlantUMLImg", Type:=wdStyleTypeParagraph)
+    mystyle.AutomaticallyUpdate = True
+End Function
+
+' =========================================================
+' We show the hidden text
+Function ShowPlantuml()
+    DoubleCheckStyle
+
+    'WordBasic.ShowComments
+    ' We put a bookmark to retrieve position after showing the text
+    ActiveDocument.Bookmarks.Add Name:="Position", Range:=Selection.Range
+        
+    Set mystyle = ActiveDocument.Styles("PlantUML")
+'    Set toolBar = ActiveDocument.CommandBars("UML")
+        
+'    toolBar.Controls(2).Visible = False
+'   toolBar.Controls(3).Visible = True
+'    toolBar.Controls(4).Visible = True
+'    toolBar.Controls(5).Visible = True
+        
+    Call ShowHiddenText
+        
+    'We go back to the bookmark and we delete it
+    Selection.GoTo What:=wdGoToBookmark, Name:="Position"
+    ActiveDocument.Bookmarks(Index:="Position").Delete
+    
+End Function
+
+
+' =========================================================
+' MSR - management of display/hide text with style "PlantUML"
+Function HidePlantuml()
+    DoubleCheckStyle
+    'WordBasic.ShowComments
+    ' We put a bookmark to retrieve position after showing the text
+    ActiveDocument.Bookmarks.Add Name:="Position", Range:=Selection.Range
+    
+    Set mystyle = ActiveDocument.Styles("PlantUML")
+'    Set toolBar = ActiveDocument.CommandBars("UML")
+        
+'    toolBar.Controls(2).Visible = True
+'    toolBar.Controls(3).Visible = False
+'    toolBar.Controls(4).Visible = False
+'    toolBar.Controls(5).Visible = False
+    
+    Call HideHiddenText
+    
+    'We go back to the bookmark and we delete it
+    Selection.GoTo What:=wdGoToBookmark, Name:="Position"
+    ActiveDocument.Bookmarks(Index:="Position").Delete
+
+End Function
+
+' =========================================================
+Function HideHiddenText()
+    ActiveDocument.ActiveWindow.View.ShowAll = False
+    ActiveDocument.ActiveWindow.View.ShowHiddenText = False
+    On Error GoTo endHidden
+    With ActiveDocument.Styles("PlantUML")
+        .Font.Hidden = True
+    End With
+endHidden:
+    On Error Resume Next
+End Function
+
+' =========================================================
+Function ShowHiddenText()
+    ActiveDocument.ActiveWindow.View.ShowAll = False
+    ActiveDocument.ActiveWindow.View.ShowHiddenText = True
+    
+    On Error GoTo endShow
+    With ActiveDocument.Styles("PlantUML")
+        .Font.Hidden = False
+    End With
+endShow:
+    On Error Resume Next
+End Function
+
+' =========================================================
+Function SwitchP()
+    flag = Not (ActiveDocument.ActiveWindow.View.ShowTabs)
+    ActiveDocument.ActiveWindow.View.ShowParagraphs = flag
+    ActiveDocument.ActiveWindow.View.ShowTabs = flag
+    ActiveDocument.ActiveWindow.View.ShowSpaces = flag
+    ActiveDocument.ActiveWindow.View.ShowHyphens = flag
+    ActiveDocument.ActiveWindow.View.ShowAll = False
+End Function
+ 
+' =========================================================
+' \\ Function to return the full content of a text file as a string
+'from http://www.vbaexpress.com/kb/getarticle.php?kb_id=699
+Function LoadTextFile(sFile) As String
+    Dim iFile As Integer
+     
+    On Local Error Resume Next
+     ' \\ Use FreeFile to supply a file number that is not already in use
+    iFile = FreeFile
+     
+     ' \\ ' Open file for input.
+    Open sFile For Input As #iFile
+     
+     ' \\ Return (Read) the whole content of the file to the function
+    LoadTextFile = Input$(LOF(iFile), iFile)
+     
+    Close #iFile
+     
+End Function
+
+
+
+Sub ISwitchP(ByVal Control As IRibbonControl)
+    SwitchP
+End Sub
+
+Sub IShowPlantUML(ByVal Control As IRibbonControl)
+    ShowPlantuml
+
+End Sub
+
+Sub IHidePlantUML(ByVal Control As IRibbonControl)
+    HidePlantuml
+
+End Sub
+
+Sub IUML1(ByVal Control As IRibbonControl)
+    Macro_UML ("parg")
+
+End Sub
+Sub IUMLAll(ByVal Control As IRibbonControl)
+    Macro_UML ("all")
+End Sub
+
+Sub IAutoFormatOn(ByVal Control As IRibbonControl)
+    AutoFormatOn
+End Sub
+Sub IAutoFormatOff(ByVal Control As IRibbonControl)
+    AutoFormatOff
+End Sub
+
+Sub IPlantUMLInteractive(ByVal Control As IRibbonControl)
+    With frmPlantUMLInteractive
+        
+        
+        .tbPlantCode.Text = Replace(Macro_UML("fetch"), vbLf, vbCrLf)
+        
+        .Show
+        
+    End With
+    
+End Sub
+
+
+
+
+
+Sub IPreferences(ByVal Control As IRibbonControl)
+    Dim info As String
+    info = "Microsoft Word 2010 addin by Adriaan van den Brand" & vbCrLf & _
+           "Plantuml: see http://plantuml.com" & vbCrLf & _
+           "Graphviz path: " & getDotPath() & vbCrLf & _
+           "Plantuml JAR: " & getJarPath()
+           
+    If RegKeyRead("VectorGraphics") = "ON" Then
+        vectorgraphics = True
+    End If
+    If RegKeyRead("FTPMode") = "ON" Then
+        useFTP = True
+    End If
+    FTPURL = RegKeyRead("URL")
+    
+    With PrefsForm
+        If vectorgraphics = True Then
+          .btnVectorGraphics.Caption = "ON"
+        Else
+          .btnVectorGraphics.Caption = "OFF"
+        End If
+        If useFTP = True Then
+           .btnFTP.Caption = "ON"
+        Else
+          .btnFTP.Caption = "OFF"
+        End If
+        
+        .info.Caption = info
+       .Show
+        RegKeySave "VectorGraphics", .btnVectorGraphics.Caption
+        RegKeySave "FTPMode", .btnFTP.Caption
+        RegKeySave "FTPURL", .tbURL.Text
+    
+        ' adjust setting, will even work if registry saving failed
+        vectorgraphics = (.btnVectorGraphics.Caption = "ON")
+        useFTP = (.btnFTP.Caption = "ON")
+        FTPURL = (.tbURL.Text)
+
+    End With
+End Sub
+
+Sub AutoFormatOff()
+    ' disable worst of MS Word autoformatting options
+    With options
+        .AutoFormatAsYouTypeReplaceQuotes = False
+        .AutoFormatAsYouTypeReplaceSymbols = False
+        .AutoFormatAsYouTypeReplacePlainTextEmphasis = False
+        .AutoFormatAsYouTypeDefineStyles = False
+        .TabIndentKey = True
+    End With
+End Sub
+
+Sub AutoFormatOn()
+    ' enable disabled MS Word autoformatting options
+    With options
+        .AutoFormatAsYouTypeReplaceQuotes = True
+        .AutoFormatAsYouTypeReplaceSymbols = True
+        .AutoFormatAsYouTypeReplacePlainTextEmphasis = True
+        .AutoFormatAsYouTypeDefineStyles = True
+        .TabIndentKey = True
+    End With
+End Sub
+
+
