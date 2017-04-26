@@ -23,7 +23,7 @@ First time:
 # USING
 Once installed, a special menu (PlantUML) should be available in Word as tab "PlantUML"
 
-![](https://raw.githubusercontent.com/plantuml/word-template/master/menu.png)
+![](https://raw.githubusercontent.com/plantuml/word-template/master/images/menu.png)
 
 * P : show paragraph marks
 * Show PlantUML : reveal (green text) of PlantUML image sources (for editing)
