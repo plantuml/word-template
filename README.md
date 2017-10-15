@@ -4,12 +4,14 @@ This repository contains the Word Template Plugin for PlantUML.
 
 The Word template allows using PlantUML directly from MS Word 2010/2013 on Windows (32/64 bit) without need to alter document templates or edit VBA macro's. MS Word Version 2007 may work, but is not tested. 
 
+**Also tested in Word 2016, need to copy contents of "Word2016" folder
+
 # INSTALLATION
 First time: 
-* install the [template](https://github.com/plantuml/word-template/blob/master/PlantUML_Template_v32.dotm) in Word
+* install the right template version in Word
   * copy the (dotm) file in to `%appdata%\Microsoft\Word\STARTUP`
   * note: .dotm = Word Doc Template (office 2007/2010) with Macro's enabled
-* install Plantuml.jar in `%appdata%`
+* copy Plantuml.jar to `%appdata%` folder
 * install GraphViz
   * http://www.graphviz.org/Download_windows.php
     * use installer if you have rights to install applications; this will install graphviz in your program files (x86)
