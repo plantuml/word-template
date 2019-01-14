@@ -13,7 +13,7 @@ First time:
   * note: .dotm = Word Doc Template (office 2007/2010) with Macro's enabled
 * copy Plantuml.jar to `%appdata%` folder
 * install GraphViz
-  * http://www.graphviz.org/Download_windows.php
+  * https://graphviz.gitlab.io/_pages/Download/Download_windows.html
     * use installer if you have rights to install applications; this will install graphviz in your program files (x86)
     * use zip for portable installation
       * extract in `%appdata%` 
