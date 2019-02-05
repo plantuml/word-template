@@ -69,7 +69,8 @@
 '   replace ActiveDocument.PageSetup with currentparagraph.PageSetup to solve sections issues
 'version 033
 '   updated PtrSafe functions for Word 2016 Support
-
+'version 034
+'   updated Vector Option to be of SVG format, which is actually supported by Word 2016+
 
 #If Win64 Or VBA7 Then
   Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
@@ -90,7 +91,9 @@ Dim FTPURL As String
 
 Function get_gfx_extension() As String
     If vectorgraphics Then
-        get_gfx_extension = "*.eps"
+        'IMF-20190205: eps are not safe anymore, Word doesn't like it...
+        'get_gfx_extension = "*.eps"
+        get_gfx_extension = "*.svg"
     Else
         get_gfx_extension = "*.png"
     End If
@@ -101,7 +104,9 @@ Function get_plantuml_options() As String
     Dim options As String
     options = ""
     If vectorgraphics Then
-       options = options + " -teps"
+       'IMF-20190205: eps are not safe anymore, Word doesn't like it...
+       'options = options + " -teps"
+       options = options + " -tsvg"
     End If
 
     get_plantuml_options = options
