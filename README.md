@@ -4,8 +4,8 @@ This repository contains the Word Template Plugin for PlantUML.
 
 The Word template allows using PlantUML directly from MS Word 2010/2013 on Windows (32/64 bit) without need to alter document templates or edit VBA macro's. MS Word Version 2007 may work, but is not tested. 
 
-Also tested in Word 2016, need to copy contents of "Word2016" folder. 
--Updated 20190502: Now Word 2016 accepts SVG images, you can try generating them by selecting "Vector Graphics ON" on PlantUML tab's Preferences.
+Also tested in Word 2016, need to copy contents of "Word_2016" folder. 
+*Updated 20190502: Now Word 2016 accepts SVG images, you can try generating them by selecting "Vector Graphics ON" on PlantUML tab's Preferences.
 
 # INSTALLATION
 First time: 
