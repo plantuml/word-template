@@ -111,11 +111,13 @@ Function get_plantuml_options() As String
 End Function
 
 Function getExePath(searchfor As String, ByRef try As String) As String
+    Dim fullFilePath As String
     Set fs = CreateObject("Scripting.FileSystemObject")
      
     nbTemplates = ActiveDocument.Parent.Templates.Count
-    mainPath = ActiveDocument.Path
-    try = ActiveDocument.Path & "\"
+    fullFilePath = GetLocalPath(ActiveDocument.FullName)
+    mainPath = Left(fullFilePath, InStrRev(fullFilePath, "\") - 1)
+    try = mainPath & "\"
     
     nb = InStrRev(mainPath, "\")
     Do While nb > 1 And fs.FileExists(mainPath + searchfor) = False
@@ -423,8 +425,13 @@ Function Macro_UML(scope) As String
         lockFile.SaveAs fileName:=jarPath & "\javaumllock.tmp", FileFormat:=wdFormatText
         lockFile.Close
     
+        Dim fullFilePath As String
+        Dim mainPath As String
+        fullFilePath = GetLocalPath(ActiveDocument.FullName)
+        mainPath = Left(fullFilePath, InStrRev(fullFilePath, "\") - 1)
+        
         Dim javaoptions
-            javaoptions = " -Dplantuml.include.path=" & Chr(34) & ActiveDocument.Path & Chr(34) & " "
+            javaoptions = " -Dplantuml.include.path=" & Chr(34) & mainPath & Chr(34) & " "
     
             JavaCommand = "java " & javaoptions _
                & "-classpath """ & jarPath & "\plantuml.jar;" & _
