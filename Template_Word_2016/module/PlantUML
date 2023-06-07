@@ -87,8 +87,6 @@ Dim useFTP As Boolean
 Dim FTPURL As String
 
 
-
-
 Function get_gfx_extension() As String
     If vectorgraphics Then
         'IMF-20190205: eps are not safe anymore, Word doesn't like it...
@@ -113,11 +111,13 @@ Function get_plantuml_options() As String
 End Function
 
 Function getExePath(searchfor As String, ByRef try As String) As String
+    Dim fullFilePath As String
     Set fs = CreateObject("Scripting.FileSystemObject")
      
     nbTemplates = ActiveDocument.Parent.Templates.Count
-    mainPath = ActiveDocument.Path
-    try = ActiveDocument.Path & "\"
+    fullFilePath = GetLocalPath(ActiveDocument.FullName)
+    mainPath = Left(fullFilePath, InStrRev(fullFilePath, "\") - 1)
+    try = mainPath & "\"
     
     nb = InStrRev(mainPath, "\")
     Do While nb > 1 And fs.FileExists(mainPath + searchfor) = False
@@ -138,10 +138,10 @@ Function getExePath(searchfor As String, ByRef try As String) As String
         mainPath = ".\"
     End If
     
-    For I = 1 To nbTemplates
+    For i = 1 To nbTemplates
         If fs.FileExists(mainPath + searchfor) = False Then
-            mainPath = ActiveDocument.Parent.Templates.Item(I).Path
-            try = try & vbCrLf & ActiveDocument.Parent.Templates.Item(I).Path & "\"
+            mainPath = ActiveDocument.Parent.Templates.Item(i).Path
+            try = try & vbCrLf & ActiveDocument.Parent.Templates.Item(i).Path & "\"
             nb = InStrRev(mainPath, "\")
             Do While nb > 1 And fs.FileExists(mainPath + searchfor) = False
                 mainPath = Left(mainPath, nb - 1)
@@ -149,7 +149,7 @@ Function getExePath(searchfor As String, ByRef try As String) As String
                 nb = InStrRev(mainPath, "\")
             Loop
         End If
-    Next I
+    Next i
     
     If fs.FileExists(mainPath + searchfor) Then
         getExePath = mainPath
@@ -378,9 +378,9 @@ Function Macro_UML(scope) As String
                      Application.ScreenUpdating = True
                     Exit Function
                 End If
-                filename = jarPath & "\" & textFileId
+                fileName = jarPath & "\" & textFileId
                 
-                WriteToFile filename, Mid(s, 1, Len(s) - 1)
+                WriteToFile fileName, Mid(s, 1, Len(s) - 1)
                 If useFTP Then
                    retValue = FtpStor(ftphandle, jarPath & "\" & textFileId, textFileId)
                 End If
@@ -414,19 +414,24 @@ Function Macro_UML(scope) As String
     ' version 012 : add include path to document path
     ' if document is loaded from disk (by drive letter)
     If useFTP Then
-        For I = 1 To currentIndex
-               imageId = documentId & "_extr" & Right("000" & I, 4) & ".png"
+        For i = 1 To currentIndex
+               imageId = documentId & "_extr" & Right("000" & i, 4) & ".png"
                imageName = jarPath & "\" & imageId
                retValue = FtpRetr(ftphandle, imageName, imageId)
-        Next I
+        Next i
   'Sleep 200
     Else
         Set lockFile = Documents.Add(Visible:=False)
-        lockFile.SaveAs filename:=jarPath & "\javaumllock.tmp", FileFormat:=wdFormatText
+        lockFile.SaveAs fileName:=jarPath & "\javaumllock.tmp", FileFormat:=wdFormatText
         lockFile.Close
     
+        Dim fullFilePath As String
+        Dim mainPath As String
+        fullFilePath = GetLocalPath(ActiveDocument.FullName)
+        mainPath = Left(fullFilePath, InStrRev(fullFilePath, "\") - 1)
+        
         Dim javaoptions
-            javaoptions = " -Dplantuml.include.path=" & Chr(34) & ActiveDocument.Path & Chr(34) & " "
+            javaoptions = " -Dplantuml.include.path=" & Chr(34) & mainPath & Chr(34) & " "
     
             JavaCommand = "java " & javaoptions _
                & "-classpath """ & jarPath & "\plantuml.jar;" & _
@@ -435,8 +440,8 @@ Function Macro_UML(scope) As String
         
         
                 
-        Result = ShellAndWait(JavaCommand, 0, vbMinimizedFocus, AbandonWait)
-        If Result <> Success Then
+        result = ShellAndWait(JavaCommand, 0, vbMinimizedFocus, AbandonWait)
+        If result <> Success Then
             MsgBox "Java command execution failed (break key?)"
             Return
         End If
@@ -530,7 +535,7 @@ Function Macro_UML(scope) As String
             currentparagraph.Collapse
             
             Set image = currentparagraph.InlineShapes.AddPicture _
-                (filename:=jarPath & "\" & image _
+                (fileName:=jarPath & "\" & image _
                 , LinkToFile:=False, SaveWithDocument:=True)
         
             ' check if scale was forced in plantuml code
@@ -614,7 +619,7 @@ LastParagraph:
             currentparagraph.Collapse
             
             Set image = currentparagraph.InlineShapes.AddPicture _
-                (filename:=jarPath & "\" & image _
+                (fileName:=jarPath & "\" & image _
                 , LinkToFile:=False, SaveWithDocument:=True)
                 
             If fs.FileExists(errorTextFile) Then
@@ -729,7 +734,7 @@ Function DoubleCheckStyle()
     mystyle.AutomaticallyUpdate = True
     With mystyle.Font
         .Name = "Courier New"
-        .Size = 9
+        .size = 9
         .Hidden = False
         '.Hidden = True ' change in plantuml template 2.9 to allow copy/paste
         .Color = wdColorGreen
@@ -754,7 +759,7 @@ CreateStyleOverwrite:
     mystyle.AutomaticallyUpdate = True
     With mystyle.Font
         .Name = "Courier New"
-        .Size = 9
+        .size = 9
         .Hidden = False
         .Hidden = True
         .Color = wdColorGreen
