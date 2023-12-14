@@ -9,6 +9,7 @@ Also tested in MS Word 2016, need to copy contents of "Template_Word_2016" folde
 
 # INSTALLATION
 First time: 
+* install the JDK: https://www.oracle.com/il-en/java/technologies/downloads/#jdk21-windows
 * install the right template version in Word
   * copy the (.dotm) file in to `%appdata%\Microsoft\Word\STARTUP`
   * note: .dotm = Word Doc Template (office 2007 and newer) with Macro's enabled
