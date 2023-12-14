@@ -400,7 +400,7 @@ Private Const vbErrComponentNotRegistered As Long = 336
 
 Private m_providers As ONEDRIVE_PROVIDERS
 #If Mac Then
-    Private m_conversionDescriptors As New Collection
+    Private m_conversionDescriptors As New collection
 #End If
 
 '*******************************************************************************
@@ -416,7 +416,7 @@ Public Function BrowseForFiles(Optional ByRef initialPath As String _
                              , Optional ByRef dialogTitle As String _
                              , Optional ByRef filterDesc As String _
                              , Optional ByRef filterList As String _
-                             , Optional ByVal allowMultiFiles As Boolean = True) As Collection
+                             , Optional ByVal allowMultiFiles As Boolean = True) As collection
     'In case reference to Microsoft Office X.XX Object Library is missing
     Const dialogTypeFilePicker As Long = 3 'msoFileDialogFilePicker
     Const actionButton As Long = -1
@@ -427,8 +427,8 @@ Public Function BrowseForFiles(Optional ByRef initialPath As String _
         If LenB(.InitialFileName) = 0 Then
             Dim app As Object: Set app = Application 'Needs to be late-binded
             Select Case Application.Name
-                Case "Microsoft Excel": .InitialFileName = GetLocalPath(app.ThisWorkbook.Path, , True)
-                Case "Microsoft Word":  .InitialFileName = GetLocalPath(app.ThisDocument.Path, , True)
+                Case "Microsoft Excel": .InitialFileName = GetLocalPath(app.ThisWorkbook.path, , True)
+                Case "Microsoft Word":  .InitialFileName = GetLocalPath(app.ThisDocument.path, , True)
             End Select
         End If
         '
@@ -438,7 +438,7 @@ Public Function BrowseForFiles(Optional ByRef initialPath As String _
         .Filters.Add filterDesc, filterList
         On Error GoTo 0
         '
-        Set BrowseForFiles = New Collection
+        Set BrowseForFiles = New collection
         If .Show = actionButton Then
             Dim v As Variant
             '
@@ -484,8 +484,8 @@ Public Function BrowseForFolder(Optional ByRef initialPath As String _
         If LenB(.InitialFileName) = 0 Then
             Dim app As Object: Set app = Application 'Needs to be late-binded
             Select Case Application.Name
-                Case "Microsoft Excel": .InitialFileName = GetLocalPath(app.ThisWorkbook.Path, , True)
-                Case "Microsoft Word":  .InitialFileName = GetLocalPath(app.ThisDocument.Path, , True)
+                Case "Microsoft Excel": .InitialFileName = GetLocalPath(app.ThisWorkbook.path, , True)
+                Case "Microsoft Word":  .InitialFileName = GetLocalPath(app.ThisDocument.path, , True)
             End Select
         End If
         If .Show = actionButton Then
@@ -557,7 +557,7 @@ Public Function ConvertText(ByRef textToConvert As String _
 End Function
 #If Mac Then
 Public Sub ClearConversionDescriptors()
-    If m_conversionDescriptors.Count = 0 Then Exit Sub
+    If m_conversionDescriptors.count = 0 Then Exit Sub
     Dim v As Variant
     '
     For Each v In m_conversionDescriptors
@@ -700,7 +700,7 @@ Public Function CreateFolder(ByRef folderPath As String _
     fullPath = Left$(fullPath, Len(fullPath) - 1) 'Removing trailing separator
     '
     Dim sepIndex As Long
-    Dim collFoldersToCreate As New Collection
+    Dim collFoldersToCreate As New collection
     Dim v As Variant
     '
     'Note that the same outcome could be achieved via recursivity but this
@@ -786,11 +786,11 @@ Public Function DeleteFolder(ByRef folderPath As String _
     On Error GoTo 0
     If Not deleteContents Then Exit Function
     '
-    Dim collFolders As Collection
+    Dim collFolders As collection
     Dim i As Long
     '
     Set collFolders = GetFolders(folderPath, True, True, True)
-    For i = collFolders.Count To 1 Step -1 'From bottom to top level
+    For i = collFolders.count To 1 Step -1 'From bottom to top level
         If Not DeleteBottomMostFolder(collFolders.Item(i)) Then Exit Function
     Next i
     '
@@ -884,12 +884,12 @@ End Function
 'Ability to add the caret ^ char - forbidden on FAT file systems but not on NTFS
 '*******************************************************************************
 #If Windows Then
-Private Function ForbiddenNameChars(ByVal addCaret As Boolean) As Collection
-    Static collForbiddenChars As Collection
+Private Function ForbiddenNameChars(ByVal addCaret As Boolean) As collection
+    Static collForbiddenChars As collection
     Static hasCaret As Boolean
     '
     If collForbiddenChars Is Nothing Then
-        Set collForbiddenChars = New Collection
+        Set collForbiddenChars = New collection
         Dim v As Variant
         Dim i As Long
         '
@@ -916,11 +916,11 @@ End Function
 '*******************************************************************************
 #If Windows Then
 Private Function IsReservedName(ByRef nameToCheck As String) As Boolean
-    Static collReservedNames As Collection
+    Static collReservedNames As collection
     Dim v As Variant
     '
     If collReservedNames Is Nothing Then
-        Set collReservedNames = New Collection
+        Set collReservedNames = New collection
         For Each v In Split("com1,com2,com3,com4,com5,com6,com7,com8,com9," _
                           & "lpt1,lpt2,lpt3,lpt4,lpt5,lpt6,lpt7,lpt8,lpt9," _
                           & "con,nul,prn,aux", ",")
@@ -1082,8 +1082,8 @@ End Function
 Public Function GetFiles(ByRef folderPath As String _
                        , Optional ByVal includeSubFolders As Boolean = False _
                        , Optional ByVal includeHidden As Boolean = False _
-                       , Optional ByVal includeSystem As Boolean = False) As Collection
-    Dim collFiles As New Collection
+                       , Optional ByVal includeSystem As Boolean = False) As collection
+    Dim collFiles As New collection
     Dim fAttribute As VbFileAttribute
     '
     #If Mac Then
@@ -1113,7 +1113,7 @@ End Function
 '   attributes. However the vbHidden attribute does not work - no hidden files
 '   or folders are retrieved regardless if vbHidden is used or not
 '*******************************************************************************
-Private Sub AddFilesTo(ByVal collTarget As Collection _
+Private Sub AddFilesTo(ByVal collTarget As collection _
                      , ByRef folderPath As String _
                      , ByVal fAttribute As VbFileAttribute)
     #If Mac Then
@@ -1124,7 +1124,7 @@ Private Sub AddFilesTo(ByVal collTarget As Collection _
     Const errBadFileNameOrNumber As Long = 52
     Dim fileName As String
     Dim fullPath As String
-    Dim collTemp As New Collection
+    Dim collTemp As New collection
     Dim dirFailed As Boolean
     Dim v As Variant
     Dim fixedPath As String: fixedPath = BuildPath(folderPath, vbNullString)
@@ -1137,7 +1137,7 @@ Private Sub AddFilesTo(ByVal collTarget As Collection _
     Do While LenB(fileName) > 0
         collTemp.Add fileName
         If InStr(1, fileName, "?") > 0 Then 'Unsupported Unicode
-            Set collTemp = New Collection
+            Set collTemp = New collection
             dirFailed = True
             Exit Do
         End If
@@ -1180,7 +1180,7 @@ Private Function GetFSOFolder(ByRef folderPath As String) As Object
     Set fsoFolder = fso.GetFolder(folderPath)
     If Err.Number <> 0 Then
         Const ps As String = PATH_SEPARATOR
-        Dim collNames As New Collection
+        Dim collNames As New collection
         Dim i As Long
         Dim parentPath As String: parentPath = folderPath
         Dim folderName As String
@@ -1193,7 +1193,7 @@ Private Function GetFSOFolder(ByRef folderPath As String) As Object
             folderName = Mid$(parentPath, i + 1)
             parentPath = Left$(parentPath, i - 1)
             '
-            If collNames.Count = 0 Then
+            If collNames.count = 0 Then
                 collNames.Add folderName
             Else
                 collNames.Add folderName, Before:=1
@@ -1205,7 +1205,7 @@ Private Function GetFSOFolder(ByRef folderPath As String) As Object
             Set fsoFolder = fso.GetFolder(fsoFolder.ShortPath) 'Fix .SubFolders
             Set fsoFolder = fsoFolder.SubFolders(collNames(1))
             collNames.Remove 1
-        Loop Until collNames.Count = 0
+        Loop Until collNames.count = 0
     End If
     On Error GoTo 0
     Set GetFSOFolder = fso.GetFolder(fsoFolder.ShortPath) 'Fix .Files Bug
@@ -1292,8 +1292,8 @@ End Function
 Public Function GetFolders(ByRef folderPath As String _
                          , Optional ByVal includeSubFolders As Boolean = False _
                          , Optional ByVal includeHidden As Boolean = False _
-                         , Optional ByVal includeSystem As Boolean = False) As Collection
-    Dim collFolders As New Collection
+                         , Optional ByVal includeSystem As Boolean = False) As collection
+    Dim collFolders As New collection
     Dim fAttribute As VbFileAttribute
     '
     fAttribute = vbDirectory
@@ -1323,7 +1323,7 @@ End Function
 '   attributes. However the vbHidden attribute does not work - no hidden files
 '   or folders are retrieved regardless if vbHidden is used or not
 '*******************************************************************************
-Private Sub AddFoldersTo(ByVal collTarget As Collection _
+Private Sub AddFoldersTo(ByVal collTarget As collection _
                        , ByRef folderPath As String _
                        , ByVal includeSubFolders As Boolean _
                        , ByVal fAttribute As VbFileAttribute)
@@ -1337,14 +1337,14 @@ Private Sub AddFoldersTo(ByVal collTarget As Collection _
     Const parentFolder As String = ".."
     Dim folderName As String
     Dim fullPath As String
-    Dim collFolders As Collection
-    Dim collTemp As New Collection
+    Dim collFolders As collection
+    Dim collTemp As New collection
     Dim dirFailed As Boolean
     Dim v As Variant
     Dim fixedPath As String: fixedPath = BuildPath(folderPath, vbNullString)
     '
     If includeSubFolders Then
-        Set collFolders = New Collection 'Temp collection to be iterated later
+        Set collFolders = New collection 'Temp collection to be iterated later
     Else
         Set collFolders = collTarget 'No recusion so we add directly to target
     End If
@@ -1358,7 +1358,7 @@ Private Sub AddFoldersTo(ByVal collTarget As Collection _
         If folderName <> currentFolder And folderName <> parentFolder Then
             collTemp.Add folderName
             If InStr(1, folderName, "?") > 0 Then 'Unsupported Unicode
-                Set collTemp = New Collection
+                Set collTemp = New collection
                 dirFailed = True
                 Exit Do
             End If
@@ -1534,7 +1534,7 @@ Public Function GetSpecialFolderMac(ByRef specialFolderConstant As String _
     Dim cmd As String: cmd = specialFolderConstant
     '
     If LenB(domainName) > 0 Then cmd = cmd & " from " & domainName & " domain"
-    cmd = cmd & IIf(createIfMissing, " with", " without") & " folder creation"
+    cmd = cmd & iif(createIfMissing, " with", " without") & " folder creation"
     cmd = "return POSIX path of (path to " & cmd & ") as string"
     '
     On Error Resume Next
@@ -1664,60 +1664,7 @@ End Function
 Private Function GetOneDriveLocalPath(ByRef odWebPath As String _
                                     , ByVal rebuildCache As Boolean) As String
     If InStr(1, odWebPath, "https://", vbTextCompare) <> 1 Then Exit Function
-    '
-    Dim collMatches As New Collection
-    Dim bestMatch As Long
-    Dim mainIndex As Long
-    Dim i As Long
-    '
-    If rebuildCache Or Not m_providers.isSet Then ReadODProviders
-    For i = 1 To m_providers.pCount
-        With m_providers.arr(i)
-            If StrCompLeft(odWebPath, .webPath, vbTextCompare) = 0 Then
-                collMatches.Add i
-                If Not .isBusiness Then Exit For
-                If .isMain Then mainIndex = .accountIndex
-            End If
-        End With
-    Next i
-    '
-    Select Case collMatches.Count
-    Case 0: Exit Function
-    Case 1: bestMatch = collMatches(1)
-    Case Else
-        Dim pos As Long: pos = Len(odWebPath) + 1
-        Dim tempPath As String
-        Dim webPath As String
-        Dim rPart As String
-        Dim localPath As String
-        Dim v As Variant
-        Do
-            pos = InStrRev(odWebPath, "/", pos - 1)
-            tempPath = Left$(odWebPath, pos)
-            For Each v In collMatches
-                With m_providers.arr(v)
-                    rPart = Mid$(tempPath, Len(.webPath) + 1)
-                    localPath = BuildPath(.mountPoint, rPart)
-                    If IsFolder(localPath) Then
-                        If bestMatch = 0 Or .isMain Then
-                            bestMatch = v
-                        Else
-                            If IsBetterMatch(m_providers.arr(bestMatch) _
-                                           , m_providers.arr(v) _
-                                           , mainIndex _
-                                           , localPath) Then
-                                bestMatch = v
-                            End If
-                        End If
-                    End If
-                End With
-            Next v
-        Loop Until bestMatch > 0
-    End Select
-    With m_providers.arr(bestMatch)
-        rPart = Mid$(odWebPath, Len(.webPath) + 1)
-        GetOneDriveLocalPath = BuildPath(.mountPoint, rPart)
-    End With
+    GetOneDriveLocalPath = GetLocalOneDrivePath.GetLocalOneDrivePath(odWebPath, rebuildCache)
 End Function
 Private Function StrCompLeft(ByRef s1 As String _
                            , ByRef s2 As String _
@@ -1791,7 +1738,7 @@ Private Sub ReadODProviders()
     If Not accountsInfo.isSet Then Exit Sub
     '
     #If Mac Then 'Grant access to all needed files/folders, in batch
-        Dim collFiles As New Collection
+        Dim collFiles As New collection
         Dim fileName As String
         '
         For i = 1 To accountsInfo.pCount
@@ -1812,12 +1759,12 @@ Private Sub ReadODProviders()
         Next i
         '
         Const syncIDFileName As String = ".849C9593-D756-4E56-8D6E-42412F2A707B"
-        Dim collCloudDirs As Collection: Set collCloudDirs = GetODCloudDirs()
+        Dim collCloudDirs As collection: Set collCloudDirs = GetODCloudDirs()
         Dim odCloudDir As Variant
         Dim arrPaths() As String
         Dim syncID As String
         Dim folderPath As String
-        Dim collSyncIDToDir As New Collection
+        Dim collSyncIDToDir As New collection
         '
         For Each odCloudDir In collCloudDirs
             collFiles.Add odCloudDir
@@ -1826,7 +1773,7 @@ Private Sub ReadODProviders()
         arrPaths = CollectionToStrings(collFiles)
         If Not GrantAccessToMultipleFiles(arrPaths) Then Exit Sub
         '
-        Set collFiles = New Collection
+        Set collFiles = New collection
         For Each odCloudDir In collCloudDirs
             syncID = ReadSyncID(odCloudDir & "/" & syncIDFileName)
             If LenB(syncID) > 0 Then
@@ -1841,7 +1788,7 @@ Private Sub ReadODProviders()
                 Loop
             End If
         Next odCloudDir
-        If collFiles.Count > 0 Then
+        If collFiles.count > 0 Then
             arrPaths = CollectionToStrings(collFiles)
             If Not GrantAccessToMultipleFiles(arrPaths) Then Exit Sub
             '
@@ -1867,7 +1814,7 @@ Private Sub ReadODProviders()
         End If
     Next i
     #If Mac Then
-        If collSyncIDToDir.Count > 0 Then 'Replace sandbox paths
+        If collSyncIDToDir.count > 0 Then 'Replace sandbox paths
             For i = 1 To m_providers.pCount
                 With m_providers.arr(i)
                     Dim syncDir As String: syncDir = collSyncIDToDir(.syncID)
@@ -1886,8 +1833,8 @@ End Sub
 'Mac utilities for reading OneDrive providers
 '*******************************************************************************
 #If Mac Then
-Private Function GetODCloudDirs() As Collection
-    Dim coll As New Collection
+Private Function GetODCloudDirs() As collection
+    Dim coll As New collection
     Dim cloudPath As String:  cloudPath = GetCloudPath()
     Dim folderName As String: folderName = Dir(cloudPath, vbDirectory)
     '
@@ -1905,13 +1852,13 @@ End Function
 Private Function GetUserPath() As String
     GetUserPath = "/Users/" & Environ$("USER") & "/"
 End Function
-Private Function CollectionToStrings(ByVal coll As Collection) As String()
-    If coll.Count = 0 Then
+Private Function CollectionToStrings(ByVal coll As collection) As String()
+    If coll.count = 0 Then
         CollectionToStrings = Split(vbNullString)
         Exit Function
     End If
     '
-    Dim res() As String: ReDim res(0 To coll.Count - 1)
+    Dim res() As String: ReDim res(0 To coll.count - 1)
     Dim i As Long
     Dim v As Variant
     '
@@ -1952,13 +1899,13 @@ Private Sub ReadODAccountsInfo(ByRef accountsInfo As ONEDRIVE_ACCOUNTS_INFO)
     Dim i As Long
     Dim mask As String
     Dim datName As String
-    Dim collFolders As Collection: Set collFolders = GetODAccountDirs()
+    Dim collFolders As collection: Set collFolders = GetODAccountDirs()
     '
     accountsInfo.pCount = 0
     accountsInfo.isSet = False
     '
     If collFolders Is Nothing Then Exit Sub
-    If collFolders.Count > 0 Then ReDim accountsInfo.arr(1 To collFolders.Count)
+    If collFolders.count > 0 Then ReDim accountsInfo.arr(1 To collFolders.count)
     '
     For Each folderPath In collFolders
         i = i + 1
@@ -1989,7 +1936,7 @@ Private Sub ReadODAccountsInfo(ByRef accountsInfo As ONEDRIVE_ACCOUNTS_INFO)
         End With
     Next folderPath
     With accountsInfo
-        If i > 0 And i < collFolders.Count Then ReDim Preserve .arr(1 To i)
+        If i > 0 And i < collFolders.count Then ReDim Preserve .arr(1 To i)
         .pCount = i
         .isSet = True
     End With
@@ -1998,12 +1945,12 @@ End Sub
 '*******************************************************************************
 'Utility for reading all OneDrive account folder paths within OneDrive Settings
 '*******************************************************************************
-Private Function GetODAccountDirs() As Collection
-    Dim collSettings As Collection: Set collSettings = GetODSettingsDirs()
+Private Function GetODAccountDirs() As collection
+    Dim collSettings As collection: Set collSettings = GetODSettingsDirs()
     Dim settingsPath As Variant
     '
     #If Mac Then 'Grant access, if needed, to all possbile folders, in batch
-        Dim arrDirs() As Variant: ReDim arrDirs(0 To collSettings.Count * 11)
+        Dim arrDirs() As Variant: ReDim arrDirs(0 To collSettings.count * 11)
         Dim i As Long
         '
         arrDirs(i) = GetCloudPath()
@@ -2020,7 +1967,7 @@ Private Function GetODAccountDirs() As Collection
     '
     Dim folderPath As Variant
     Dim folderName As String
-    Dim collFolders As New Collection
+    Dim collFolders As New collection
     '
     For Each settingsPath In collSettings
         folderName = Dir(settingsPath, vbDirectory)
@@ -2038,8 +1985,8 @@ End Function
 '*******************************************************************************
 'Utility returning all possible OneDrive Settings folders
 '*******************************************************************************
-Private Function GetODSettingsDirs() As Collection
-    Set GetODSettingsDirs = New Collection
+Private Function GetODSettingsDirs() As collection
+    Set GetODSettingsDirs = New collection
     With GetODSettingsDirs
     #If Mac Then
         Const settingsPath = "Library/Application Support/OneDrive/settings/"
@@ -2078,9 +2025,9 @@ Private Sub AddBusinessProviders(ByRef aInfo As ONEDRIVE_ACCOUNT_INFO)
     Dim mainSyncID As String
     Dim tempURL As String
     Dim cSignature As String
-    Dim cFolders As Collection
-    Dim cParents As Collection
-    Dim cPending As New Collection
+    Dim cFolders As collection
+    Dim cParents As collection
+    Dim cPending As New collection
     Dim canAdd As Boolean
     '
     #If Mac Then
@@ -2209,7 +2156,7 @@ Private Sub AddPersonalProviders(ByRef aInfo As ONEDRIVE_ACCOUNT_INFO)
     Dim i As Long
     Dim relPath As String
     Dim folderID As String
-    Dim cFolders As Collection
+    Dim cFolders As collection
     '
     With m_providers.arr(AddProvider())
         .webPath = mainURL & aInfo.cID & "/"
@@ -2248,7 +2195,7 @@ End Sub
 'Utility - Retrieves all folders from an OneDrive user .dat file
 '*******************************************************************************
 Private Function GetODDirs(ByRef filePath As String _
-                         , Optional ByRef outParents As Collection) As Collection
+                         , Optional ByRef outParents As collection) As collection
     Dim fileNumber As Long: fileNumber = FreeFile()
     '
     Open filePath For Binary Access Read As #fileNumber
@@ -2271,7 +2218,7 @@ Private Function GetODDirs(ByRef filePath As String _
     Dim s As String
     Dim lastRecord As Long
     Dim i As Long
-    Dim cFolders As Collection
+    Dim cFolders As collection
     Dim lastFileChange As Date
     Dim currFileChange As Date
     Dim stepSize As Long
@@ -2280,9 +2227,9 @@ Private Function GetODDirs(ByRef filePath As String _
     Dim parentID As String
     Dim folderName As String
     Dim idPattern As String
-    Dim vbNullByte As String: vbNullByte = ChrB$(0)
-    Dim hFolder As String:    hFolder = ChrB$(2) 'x02
-    Dim hCheck As String * 4: MidB$(hCheck, 1) = ChrB$(1) 'x01000000
+    Dim vbNullByte As String: vbNullByte = chrb$(0)
+    Dim hFolder As String:    hFolder = chrb$(2) 'x02
+    Dim hCheck As String * 4: MidB$(hCheck, 1) = chrb$(1) 'x01000000
     '
     idPattern = Replace(Space$(16), " ", "[a-fA-F0-9]") & "*"
     For stepSize = 16 To 8 Step -8
@@ -2291,8 +2238,8 @@ Private Function GetODDirs(ByRef filePath As String _
             i = 0
             currFileChange = FileDateTime(filePath)
             If currFileChange > lastFileChange Then
-                Set cFolders = New Collection
-                Set outParents = New Collection
+                Set cFolders = New collection
+                Set outParents = New collection
                 lastFileChange = currFileChange
                 lastRecord = 1
             End If
@@ -2344,7 +2291,7 @@ Private Function GetODDirs(ByRef filePath As String _
                 lastRecord = lastRecord - chunkSize + (i \ 2) * 2
             End If
         Loop Until lastRecord > size
-        If cFolders.Count > 0 Then Exit For
+        If cFolders.count > 0 Then Exit For
     Next stepSize
     Set GetODDirs = cFolders
 CloseFile:
